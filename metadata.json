@@ -1,0 +1,5 @@
+{
+  "name": "Project Template Generator",
+  "description": "An AI-powered tool that generates comprehensive project management templates including phases, tasks, risks, and resource estimates based on project descriptions.",
+  "requestFramePermissions": []
+}
