@@ -204,3 +204,36 @@ export const generateTemplate = async (input: GenerateInput): Promise<ProjectTem
     throw error;
   }
 };
+
+export const generateDetailedTechPlan = async (
+  type: 'hardware' | 'software',
+  summary: string,
+  projectName: string
+): Promise<string> => {
+  if (!apiKey) throw new Error("API Key not found");
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+    作为一名资深的${type === 'hardware' ? '硬件' : '软件'}架构师，请为项目"${projectName}"生成一份详细的${type === 'hardware' ? '硬件实施方案' : '软件技术实施方案'}。
+    
+    基于以下概要信息进行深度扩展：
+    ${summary}
+    
+    要求：
+    1. 输出格式为 **Markdown**。
+    2. 内容必须专业、深入，具备可执行性。
+    3. 如果是硬件：包括系统框图描述、关键元器件选型理由、电源设计、信号完整性考虑、PCB布局建议等。
+    4. 如果是软件：包括详细架构设计、模块划分、API设计规范、数据库设计建议、部署方案、安全策略等。
+    5. 字数建议 500-1000 字。
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      thinkingConfig: { thinkingBudget: 1024 }
+    }
+  });
+
+  return response.text || "生成详细方案失败，请重试。";
+};

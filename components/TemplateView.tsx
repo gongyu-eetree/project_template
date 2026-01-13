@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Briefcase, 
   Calendar, 
@@ -17,13 +18,17 @@ import {
   BrainCircuit,
   Layers,
   Code,
-  Server
+  Server,
+  Maximize2,
+  Loader2
 } from 'lucide-react';
 import { ProjectTemplate, Phase, RiskLevel } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { generateDetailedTechPlan } from '../services/geminiService';
 
 interface TemplateViewProps {
   template: ProjectTemplate;
+  onTemplateUpdate?: (updated: ProjectTemplate) => void;
 }
 
 const RiskBadge: React.FC<{ level: RiskLevel }> = ({ level }) => {
@@ -54,11 +59,43 @@ const IconForType: React.FC<{ type: string }> = ({ type }) => {
   return <Layers className="w-5 h-5" />;
 };
 
-export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
+export const TemplateView: React.FC<TemplateViewProps> = ({ template, onTemplateUpdate }) => {
   const [expandedPhases, setExpandedPhases] = useState<Record<number, boolean>>({});
+  const [loadingTech, setLoadingTech] = useState<'hardware' | 'software' | null>(null);
 
   const togglePhase = (index: number) => {
     setExpandedPhases(prev => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const handleExpandTech = async (type: 'hardware' | 'software') => {
+    if (loadingTech) return;
+    
+    setLoadingTech(type);
+    try {
+      const summary = type === 'hardware' 
+        ? JSON.stringify(template.technicalSolution?.hardware)
+        : JSON.stringify(template.technicalSolution?.software);
+        
+      const detail = await generateDetailedTechPlan(type, summary, template.basicInfo.name);
+      
+      const newTemplate = { ...template };
+      if (!newTemplate.technicalSolution) newTemplate.technicalSolution = {};
+      
+      if (type === 'hardware' && newTemplate.technicalSolution.hardware) {
+        newTemplate.technicalSolution.hardware.detailedPlan = detail;
+      } else if (type === 'software' && newTemplate.technicalSolution.software) {
+        newTemplate.technicalSolution.software.detailedPlan = detail;
+      }
+
+      if (onTemplateUpdate) {
+        onTemplateUpdate(newTemplate);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("生成详细方案失败");
+    } finally {
+      setLoadingTech(null);
+    }
   };
 
   const chartData = template.estimates.phaseDurations.map(p => ({
@@ -71,10 +108,10 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
   const hasSoftware = !!template.technicalSolution?.software;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
+    <div id="template-view" className="space-y-8 animate-fade-in pb-20">
       
       {/* 1. Basic Info Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-break-inside-avoid">
         <div className="bg-slate-50 p-6 border-b border-slate-200 flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="p-3 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-200">
@@ -90,7 +127,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
               <p className="text-slate-600 max-w-2xl">{template.basicInfo.scenario}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 no-print">
              {template.basicInfo.features.slice(0, 3).map((feature, idx) => (
                <span key={idx} className="hidden lg:inline-flex items-center px-3 py-1 bg-white border border-slate-200 rounded-full text-xs text-slate-600">
                  <CheckCircle2 className="w-3 h-3 mr-1 text-green-500" />
@@ -103,7 +140,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
 
       {/* Technical Solution Section (New) */}
       {(hasHardware || hasSoftware) && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 print-break-inside-avoid">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
             <Server className="w-5 h-5 text-cyan-600" />
             技术实施方案 (Technical Solution)
@@ -113,12 +150,15 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
             
             {/* Hardware Section */}
             {hasHardware && template.technicalSolution?.hardware && (
-              <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Cpu className="w-5 h-5 text-orange-500" />
-                  <h3 className="font-bold text-slate-800">硬件架构</h3>
+              <div className="bg-slate-50 rounded-lg border border-slate-200 p-5 flex flex-col">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-bold text-slate-800">硬件架构</h3>
+                  </div>
                 </div>
-                <div className="space-y-4">
+                
+                <div className="space-y-4 flex-grow">
                   <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">方案概述</h4>
                     <p className="text-sm text-slate-700">{template.technicalSolution.hardware.scheme}</p>
@@ -141,18 +181,45 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
                       ))}
                     </ul>
                   </div>
+
+                  {/* Detailed Plan (Markdown) */}
+                  {template.technicalSolution.hardware.detailedPlan && (
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-orange-500" />
+                        详细实施方案
+                      </h4>
+                      <div className="markdown-body text-sm bg-white p-4 rounded-lg border border-slate-200">
+                        <ReactMarkdown>{template.technicalSolution.hardware.detailedPlan}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {!template.technicalSolution.hardware.detailedPlan && (
+                  <button 
+                    onClick={() => handleExpandTech('hardware')}
+                    disabled={loadingTech === 'hardware'}
+                    className="mt-4 w-full py-2 bg-white border border-slate-200 hover:bg-orange-50 text-orange-600 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors no-print"
+                  >
+                    {loadingTech === 'hardware' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Maximize2 className="w-4 h-4" />}
+                    生成详细硬件实施方案
+                  </button>
+                )}
               </div>
             )}
 
             {/* Software Section */}
             {hasSoftware && template.technicalSolution?.software && (
-              <div className="bg-slate-50 rounded-lg border border-slate-200 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Code className="w-5 h-5 text-blue-500" />
-                  <h3 className="font-bold text-slate-800">软件技术栈</h3>
-                </div>
-                <div className="space-y-4">
+              <div className="bg-slate-50 rounded-lg border border-slate-200 p-5 flex flex-col">
+                 <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-5 h-5 text-blue-500" />
+                      <h3 className="font-bold text-slate-800">软件技术栈</h3>
+                    </div>
+                 </div>
+
+                <div className="space-y-4 flex-grow">
                   <div>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">架构模式</h4>
                     <p className="text-sm text-slate-700">{template.technicalSolution.software.architecture}</p>
@@ -177,7 +244,31 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
                       ))}
                     </div>
                   </div>
+
+                   {/* Detailed Plan (Markdown) */}
+                   {template.technicalSolution.software.detailedPlan && (
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-500" />
+                        详细实施方案
+                      </h4>
+                      <div className="markdown-body text-sm bg-white p-4 rounded-lg border border-slate-200">
+                        <ReactMarkdown>{template.technicalSolution.software.detailedPlan}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+                {!template.technicalSolution.software.detailedPlan && (
+                  <button 
+                    onClick={() => handleExpandTech('software')}
+                    disabled={loadingTech === 'software'}
+                    className="mt-4 w-full py-2 bg-white border border-slate-200 hover:bg-blue-50 text-blue-600 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors no-print"
+                  >
+                     {loadingTech === 'software' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Maximize2 className="w-4 h-4" />}
+                    生成详细软件实施方案
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -189,7 +280,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
         
         {/* 4. Duration & Team (Left Col) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 print-break-inside-avoid">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-blue-500" />
@@ -238,7 +329,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
         </div>
 
         {/* 6. Usage & Context (Right Col) */}
-        <div className="space-y-6">
+        <div className="space-y-6 print-break-inside-avoid">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-full">
              <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                <Info className="w-5 h-5 text-purple-500" />
@@ -268,7 +359,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
       </div>
 
       {/* 2 & 3. Phases and Tasks */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 print-break-inside-avoid">
         <div className="p-6 border-b border-slate-200">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-indigo-500" />
@@ -277,7 +368,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
         </div>
         <div className="divide-y divide-slate-100">
           {template.phases.map((phase, index) => (
-            <div key={index} className="group">
+            <div key={index} className="group print-break-inside-avoid">
               <div 
                 onClick={() => togglePhase(index)}
                 className="p-5 cursor-pointer hover:bg-slate-50 transition-colors flex items-start sm:items-center justify-between gap-4"
@@ -305,14 +396,14 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
                     </span>
                   </div>
                 </div>
-                <button className="text-slate-400 group-hover:text-indigo-500 transition-colors">
+                <button className="text-slate-400 group-hover:text-indigo-500 transition-colors no-print">
                   {expandedPhases[index] ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </button>
               </div>
 
               {/* Tasks Accordion Body */}
-              {expandedPhases[index] && (
-                <div className="bg-slate-50/50 px-5 pb-5 pt-0 ml-9 border-l-2 border-slate-200 space-y-3">
+              {(expandedPhases[index] || true) && (
+                <div className={`bg-slate-50/50 px-5 pb-5 pt-0 ml-9 border-l-2 border-slate-200 space-y-3 ${!expandedPhases[index] ? 'hidden print:block' : ''}`}>
                    <div className="pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                      {phase.tasks.map((task, tIndex) => (
                        <div key={tIndex} className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
@@ -323,9 +414,16 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
                              </span>
                           </div>
                           <p className="text-xs text-slate-600 mb-2 leading-relaxed">{task.description}</p>
-                          <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-1.5 rounded w-fit">
-                            <FileText className="w-3 h-3" />
-                            {task.output}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium bg-indigo-50 px-2 py-1.5 rounded w-fit">
+                              <FileText className="w-3 h-3" />
+                              {task.output}
+                            </div>
+                            {task.dependencies && task.dependencies.length > 0 && (
+                              <div className="text-xs text-slate-400">
+                                前置: {task.dependencies.join(', ')}
+                              </div>
+                            )}
                           </div>
                        </div>
                      ))}
@@ -338,7 +436,7 @@ export const TemplateView: React.FC<TemplateViewProps> = ({ template }) => {
       </div>
 
       {/* 5. Risks */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-break-inside-avoid">
         <div className="p-6 border-b border-slate-200 bg-red-50/30">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-red-500" />

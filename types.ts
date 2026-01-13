@@ -61,12 +61,14 @@ export interface HardwareSpecs {
   scheme: string;
   components: string[];
   designPoints: string[];
+  detailedPlan?: string;
 }
 
 export interface SoftwareSpecs {
   languages: string[];
   frameworks: string[];
   architecture: string;
+  detailedPlan?: string;
 }
 
 export interface TechnicalSolution {

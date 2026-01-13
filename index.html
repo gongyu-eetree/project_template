@@ -26,6 +26,27 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
       }
+      
+      /* Print Styles for PDF Export */
+      @media print {
+        @page { margin: 1.5cm; }
+        body { background-color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        nav, .no-print { display: none !important; }
+        .print-break-inside-avoid { break-inside: avoid; }
+        .print-break-before { break-before: page; }
+        #root { padding: 0 !important; margin: 0 !important; }
+        main { margin-top: 0 !important; padding: 0 !important; max-width: 100% !important; }
+        .shadow-sm, .shadow-lg, .shadow-md { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+      }
+      
+      /* Markdown Styles */
+      .markdown-body h3 { font-size: 1.1rem; font-weight: 700; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
+      .markdown-body h4 { font-size: 1rem; font-weight: 600; margin-top: 0.8rem; margin-bottom: 0.4rem; color: #334155; }
+      .markdown-body p { margin-bottom: 0.8rem; line-height: 1.6; color: #475569; }
+      .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.8rem; }
+      .markdown-body li { margin-bottom: 0.25rem; }
+      .markdown-body code { background: #f1f5f9; padding: 0.1rem 0.3rem; rounded: 0.25rem; font-size: 0.85em; color: #0f172a; }
+      .markdown-body pre { background: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; color: #f8fafc; margin-bottom: 1rem; }
     </style>
   <script type="importmap">
 {
@@ -35,7 +56,8 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1"
   }
 }
 </script>

@@ -13,7 +13,9 @@ import {
   Lightbulb,
   Sparkles,
   Image as ImageIcon,
-  X
+  X,
+  Printer,
+  FileDown
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -113,7 +115,7 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  const handleSave = () => {
+  const handleSaveJson = () => {
     if(!template) return;
     const json = JSON.stringify(template, null, 2);
     const blob = new Blob([json], { type: "application/json" });
@@ -126,11 +128,55 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleExportPDF = () => {
+    window.print();
+  };
+
+  const handleExportWord = () => {
+    if(!template) return;
+    
+    // Simple HTML to Doc conversion
+    const content = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='utf-8'><title>${template.basicInfo.name}</title></head>
+      <body>
+         <h1>${template.basicInfo.name}</h1>
+         <p><strong>类型:</strong> ${template.basicInfo.type}</p>
+         <p><strong>场景:</strong> ${template.basicInfo.scenario}</p>
+         
+         <h2>项目阶段</h2>
+         ${template.phases.map(p => `
+            <h3>${p.name} ${p.isMilestone ? '(里程碑)' : ''}</h3>
+            <p>目标: ${p.goal}</p>
+            <ul>
+              ${p.tasks.map(t => `<li><strong>${t.name}</strong> (${t.role}): ${t.description} [输出: ${t.output}]</li>`).join('')}
+            </ul>
+         `).join('')}
+
+         <h2>风险评估</h2>
+         <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr><th>风险</th><th>等级</th><th>应对</th></tr>
+            ${template.risks.map(r => `<tr><td>${r.description}</td><td>${r.level}</td><td>${r.strategy}</td></tr>`).join('')}
+         </table>
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `${template.basicInfo.name.replace(/\s+/g, '_')}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-12 font-sans">
       
       {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
+      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm no-print">
         <div className="max-w-[1440px] mx-auto flex justify-between items-center px-4">
           <div className="flex items-center gap-2 text-blue-600">
             <Wand2 className="w-6 h-6" />
@@ -299,30 +345,44 @@ const App: React.FC = () => {
         {/* Result View */}
         {template && (
           <div className="animate-fade-in space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-800 text-white p-4 rounded-xl shadow-lg">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-800 text-white p-4 rounded-xl shadow-lg no-print">
               <div className="flex items-center gap-3">
                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
                  <span className="font-medium">项目模板生成成功</span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <button 
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium text-sm transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  PDF / 打印
+                </button>
+                <button 
+                  onClick={handleExportWord}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-colors"
+                >
+                  <FileDown className="w-4 h-4" />
+                  导出 Word
+                </button>
+                 <button 
+                  onClick={handleSaveJson}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  保存 JSON
+                </button>
+                 <button 
                   onClick={handleReset}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors text-sm font-medium"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  重新创建
-                </button>
-                <button 
-                  onClick={handleSave}
-                  className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-lg shadow-indigo-900/50"
-                >
-                  <Save className="w-4 h-4" />
-                  导出 JSON
+                  重置
                 </button>
               </div>
             </div>
             
-            <TemplateView template={template} />
+            <TemplateView template={template} onTemplateUpdate={setTemplate} />
           </div>
         )}
 
