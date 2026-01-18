@@ -3,66 +3,162 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Project Template Generator</title>
+    <title>PMOGenius - AI 项目规划专家</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f3f4f6;
+        font-family: 'Inter', -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+        -webkit-font-smoothing: antialiased;
+        font-size: 14px;
       }
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+      
+      /* Markdown Content Styles - Unified Font Size & Overflow Protection */
+      .markdown-body { 
+        font-size: 14px !important; 
+        line-height: 1.6; 
+        color: #334155;
+        max-width: 100%;
+        overflow-wrap: break-word;
       }
-      ::-webkit-scrollbar-track {
+      
+      .markdown-body * { 
+        font-size: 14px !important; 
+        max-width: 100%;
+      }
+      
+      /* Table Overflow Fixes */
+      .markdown-body .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        margin: 1.25rem 0;
+        border-radius: 0.5rem;
+        border: 1px solid #cbd5e1;
+      }
+
+      .markdown-body table { 
+        display: table !important;
+        width: 100% !important; 
+        border-collapse: collapse !important; 
+        margin: 0 !important;
+        background: white;
+        table-layout: auto; /* Allow auto scaling but constrain cells */
+        font-size: 14px !important;
+      }
+      
+      .markdown-body th { 
+        background-color: #f1f5f9 !important; 
+        font-weight: 700 !important; 
+        text-align: left; 
+        padding: 10px 14px !important; 
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a;
+        white-space: nowrap;
+      }
+      
+      .markdown-body td { 
+        padding: 10px 14px !important; 
+        border: 1px solid #cbd5e1 !important;
+        vertical-align: top;
+        color: #475569;
+        word-break: break-word; /* Crucial for long strings */
+        min-width: 100px;
+      }
+      
+      .markdown-body tr:nth-child(even) { background-color: #f8fafc; }
+      
+      .markdown-body h3 { 
+        font-size: 1.15rem !important; 
+        font-weight: 800; 
+        margin-top: 1.75rem; 
+        margin-bottom: 0.75rem; 
+        color: #0f172a; 
+        border-left: 5px solid #3b82f6; 
+        padding-left: 12px; 
+      }
+      
+      /* Code and Pre block wrapping fixes */
+      .markdown-body pre {
+        background-color: #f1f5f9;
+        padding: 1rem;
+        border-radius: 0.75rem;
+        overflow-x: auto;
+        margin: 1rem 0;
+        border: 1px solid #e2e8f0;
+      }
+
+      .markdown-body code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background-color: #f1f5f9;
+        padding: 0.2em 0.4em;
+        border-radius: 0.25rem;
+        font-size: 13px !important;
+        white-space: pre-wrap; /* Wrap long code lines */
+        word-break: break-all;
+      }
+
+      .markdown-body pre code {
+        padding: 0;
         background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+        white-space: pre; /* Keep structure in pre blocks but parent handles scroll */
       }
       
-      /* Print Styles for PDF Export */
+      .markdown-body p { margin-bottom: 0.75rem; }
+      .markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin-bottom: 0.75rem; }
+      
+      /* Grid min-width fix to prevent expansion beyond parent */
+      .tech-card-container {
+        min-width: 0;
+      }
+
+      /* Mermaid Diagram container */
+      .mermaid { background: white; padding: 1.5rem; border-radius: 1rem; margin: 1.5rem 0; display: flex; justify-content: center; border: 1px solid #e2e8f0; overflow: hidden; }
+
+      /* Print Styles */
       @media print {
-        @page { margin: 1.5cm; }
-        body { background-color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        nav, .no-print { display: none !important; }
-        .print-break-inside-avoid { break-inside: avoid; }
-        .print-break-before { break-before: page; }
-        #root { padding: 0 !important; margin: 0 !important; }
-        main { margin-top: 0 !important; padding: 0 !important; max-width: 100% !important; }
-        .shadow-sm, .shadow-lg, .shadow-md { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        @page { margin: 1.5cm; size: A4; }
+        body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 12pt; }
+        nav, .no-print, button, footer { display: none !important; }
+        .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        main { margin-top: 0 !important; width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+        .markdown-body table { page-break-inside: auto; }
+        .markdown-body tr { page-break-inside: avoid; page-break-after: auto; }
+        .mermaid svg { max-width: 100% !important; height: auto !important; }
       }
-      
-      /* Markdown Styles */
-      .markdown-body h3 { font-size: 1.1rem; font-weight: 700; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
-      .markdown-body h4 { font-size: 1rem; font-weight: 600; margin-top: 0.8rem; margin-bottom: 0.4rem; color: #334155; }
-      .markdown-body p { margin-bottom: 0.8rem; line-height: 1.6; color: #475569; }
-      .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.8rem; }
-      .markdown-body li { margin-bottom: 0.25rem; }
-      .markdown-body code { background: #f1f5f9; padding: 0.1rem 0.3rem; rounded: 0.25rem; font-size: 0.85em; color: #0f172a; }
-      .markdown-body pre { background: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; color: #f8fafc; margin-bottom: 1rem; }
+
+      .fade-in { animation: fadeIn 0.4s ease-out; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react-markdown": "https://esm.sh/react-markdown@9.0.1"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.3.1",
+        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1",
+        "react-dom": "https://esm.sh/react-dom@18.3.1?deps=react@18.3.1",
+        "@google/genai": "https://esm.sh/@google/genai",
+        "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom&deps=react@18.3.1,react-dom@18.3.1&bundle",
+        "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react,react-dom&deps=react@18.3.1&bundle",
+        "react-markdown": "https://esm.sh/react-markdown@9.0.1?external=react,react-dom&deps=react@18.3.1&bundle",
+        "remark-gfm": "https://esm.sh/remark-gfm@4.0.0?deps=react@18.3.1&bundle",
+        "react/": "https://esm.sh/react@18.3.1/",
+        "react-dom/": "https://esm.sh/react-dom@18.3.1/"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+    <script>
+      window.onload = () => {
+        if (window.mermaid) {
+          window.mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose', fontFamily: 'Inter' });
+        }
+      }
+    </script>
   </body>
 </html>

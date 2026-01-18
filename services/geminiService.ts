@@ -1,20 +1,29 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { ProjectTemplate } from '../types';
+import { GoogleGenAI, Type } from "@google/genai";
+import { ProjectTemplate } from '../types.ts';
 
-const apiKey = process.env.API_KEY;
+// Safely retrieve API Key preventing crash if process is undefined in browser
+const getApiKey = () => {
+  try {
+    return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
+  } catch (e) {
+    return '';
+  }
+};
 
-// Define the response schema strictly to match our TypeScript interfaces
-const templateSchema: Schema = {
+const API_KEY = getApiKey();
+
+// Defined schema for the structured JSON response from Gemini
+const templateSchema = {
   type: Type.OBJECT,
   properties: {
     basicInfo: {
       type: Type.OBJECT,
       properties: {
-        name: { type: Type.STRING, description: "项目名称" },
-        type: { type: Type.STRING, description: "项目类型 (软件 / 硬件 / AI / 综合 / 其他)" },
-        iconSuggestion: { type: Type.STRING, description: "建议图标 (如: Hardware, Software, AI)" },
-        scenario: { type: Type.STRING, description: "适用场景" },
-        features: { type: Type.ARRAY, items: { type: Type.STRING }, description: "模板特点" }
+        name: { type: Type.STRING },
+        type: { type: Type.STRING },
+        iconSuggestion: { type: Type.STRING },
+        scenario: { type: Type.STRING },
+        features: { type: Type.ARRAY, items: { type: Type.STRING } }
       },
       required: ["name", "type", "iconSuggestion", "scenario", "features"]
     },
@@ -23,21 +32,19 @@ const templateSchema: Schema = {
       properties: {
         hardware: {
           type: Type.OBJECT,
-          description: "仅当涉及硬件开发时返回此对象",
           properties: {
-            scheme: { type: Type.STRING, description: "大致硬件方案描述" },
-            components: { type: Type.ARRAY, items: { type: Type.STRING }, description: "核心器件列表" },
-            designPoints: { type: Type.ARRAY, items: { type: Type.STRING }, description: "硬件设计要点" }
+            scheme: { type: Type.STRING },
+            components: { type: Type.ARRAY, items: { type: Type.STRING } },
+            designPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ["scheme", "components", "designPoints"]
         },
         software: {
           type: Type.OBJECT,
-          description: "仅当涉及软件开发时返回此对象",
           properties: {
-            languages: { type: Type.ARRAY, items: { type: Type.STRING }, description: "开发语言" },
-            frameworks: { type: Type.ARRAY, items: { type: Type.STRING }, description: "开发框架" },
-            architecture: { type: Type.STRING, description: "软件架构模式" }
+            languages: { type: Type.ARRAY, items: { type: Type.STRING } },
+            frameworks: { type: Type.ARRAY, items: { type: Type.STRING } },
+            architecture: { type: Type.STRING }
           },
           required: ["languages", "frameworks", "architecture"]
         }
@@ -48,20 +55,20 @@ const templateSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          name: { type: Type.STRING, description: "阶段名称" },
-          goal: { type: Type.STRING, description: "阶段目标" },
-          keyOutput: { type: Type.STRING, description: "关键输出物" },
+          name: { type: Type.STRING },
+          goal: { type: Type.STRING },
+          keyOutput: { type: Type.STRING },
           isMilestone: { type: Type.BOOLEAN },
           tasks: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                name: { type: Type.STRING, description: "任务名称" },
-                description: { type: Type.STRING, description: "任务说明" },
-                output: { type: Type.STRING, description: "产出物" },
-                role: { type: Type.STRING, description: "建议角色" },
-                dependencies: { type: Type.ARRAY, items: { type: Type.STRING }, description: "依赖的前置任务名称列表 (若无则为空数组)" }
+                name: { type: Type.STRING },
+                description: { type: Type.STRING },
+                output: { type: Type.STRING },
+                role: { type: Type.STRING },
+                dependencies: { type: Type.ARRAY, items: { type: Type.STRING } }
               },
               required: ["name", "description", "output", "role", "dependencies"]
             }
@@ -73,15 +80,12 @@ const templateSchema: Schema = {
     estimates: {
       type: Type.OBJECT,
       properties: {
-        totalDuration: { type: Type.STRING, description: "总周期建议" },
+        totalDuration: { type: Type.STRING },
         phaseDurations: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
-            properties: {
-              phaseName: { type: Type.STRING },
-              days: { type: Type.INTEGER }
-            },
+            properties: { phaseName: { type: Type.STRING }, days: { type: Type.INTEGER } },
             required: ["phaseName", "days"]
           }
         },
@@ -89,10 +93,7 @@ const templateSchema: Schema = {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
-            properties: {
-              role: { type: Type.STRING },
-              count: { type: Type.INTEGER }
-            },
+            properties: { role: { type: Type.STRING }, count: { type: Type.INTEGER } },
             required: ["role", "count"]
           }
         }
@@ -104,10 +105,10 @@ const templateSchema: Schema = {
       items: {
         type: Type.OBJECT,
         properties: {
-          description: { type: Type.STRING, description: "风险描述" },
-          impactPhase: { type: Type.STRING, description: "影响阶段" },
+          description: { type: Type.STRING },
+          impactPhase: { type: Type.STRING },
           level: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
-          strategy: { type: Type.STRING, description: "应对策略" }
+          strategy: { type: Type.STRING }
         },
         required: ["description", "impactPhase", "level", "strategy"]
       }
@@ -115,9 +116,9 @@ const templateSchema: Schema = {
     usage: {
       type: Type.OBJECT,
       properties: {
-        suitability: { type: Type.STRING, description: "适用范围" },
-        notes: { type: Type.STRING, description: "注意事项" },
-        complexity: { type: Type.STRING, description: "复杂度 (e.g. 中等, 高)" }
+        suitability: { type: Type.STRING },
+        notes: { type: Type.STRING },
+        complexity: { type: Type.STRING }
       },
       required: ["suitability", "notes", "complexity"]
     }
@@ -127,10 +128,7 @@ const templateSchema: Schema = {
 
 export interface FileInput {
   name: string;
-  inlineData?: {
-    data: string;
-    mimeType: string;
-  };
+  inlineData?: { data: string; mimeType: string; };
 }
 
 export interface GenerateInput {
@@ -142,98 +140,92 @@ export interface GenerateInput {
 }
 
 export const generateTemplate = async (input: GenerateInput): Promise<ProjectTemplate> => {
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  const textPrompt = `
-    你是一位资深项目经理和 PMO 总监。
-    请根据用户的输入信息，生成一个完整、专业、可复用的项目管理模板。
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const textPrompt = `你是一位资深 PMO 专家。请根据以下输入，为研发团队生成一套完整、可执行的项目规划模板：
+    需求背景：[${input.functionalReq}]
+    技术约束：[${input.techReq}]
+    参考文档：[${input.files.map(f => f.name).join(', ')}]
+    预估周期：[${input.duration}个月]
+    预估资源：[${input.teamSize}]
     
-    用户输入信息：
-    1. 研发需求文档/图片: ${input.files.map(f => f.name).join(', ') || "未上传"}
-    2. 功能需求说明: ${input.functionalReq}
-    3. 技术指标要求: ${input.techReq}
-    4. 预计团队规模: ${input.teamSize}
-    5. 开发周期: ${input.duration} 个月
-
     要求：
-    1. **语言**: 输出必须是**简体中文**。
-    2. **模板基础信息**: 名称专业、通用。
-    3. **技术方案**: 
-       - 如果涉及**硬件开发**，必须提供：大致硬件方案、核心器件列表、设计要点。
-       - 如果涉及**软件开发**，必须提供：开发语言、开发框架、架构模式。
-       - 如果两者都有，则都需要提供。
-    4. **项目阶段**: 生成 5-9 个阶段（如需求分析、设计、开发、测试、交付等）。
-    5. **任务拆解**: 每个阶段包含 3-8 个具体任务，明确产出物、角色及**依赖关系**（前置任务）。
-    6. **周期与团队**: 结合用户输入的周期（${input.duration}个月）和团队规模（${input.teamSize}）进行合理分配。
-    7. **风险评估**: 识别 4-6 个关键风险（需求、技术、进度等）。
-    8. **JSON 格式**: 严格遵守提供的 JSON Schema。Enum 值 (High/Medium/Low) 请保持英文，其他内容为中文。
-  `;
-
-  const contents = [
-    { text: textPrompt },
-    ...input.files
-      .filter(f => f.inlineData)
-      .map(f => ({
-        inlineData: f.inlineData
-      }))
-  ];
+    1. 任务分解 (WBS) 必须符合实际研发流程。
+    2. 必须识别至少 3 个关键风险点。
+    3. 输出格式：纯 JSON 格式。
+    4. 严禁在生成的文本中包含任何 HTML 标签（特别是禁止生成 <br> 或 <br/>）。`;
+  
+  const contents = { 
+    parts: [
+      { text: textPrompt }, 
+      ...input.files.filter(f => f.inlineData).map(f => ({ inlineData: f.inlineData }))
+    ] 
+  };
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: { parts: contents },
+      model: 'gemini-3-pro-preview',
+      contents: contents,
       config: {
         responseMimeType: "application/json",
-        responseSchema: templateSchema,
-        thinkingConfig: { thinkingBudget: 1024 }
+        responseSchema: templateSchema as any,
+        thinkingConfig: { thinkingBudget: 4000 }
       }
     });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("No response generated");
-    }
-
-    return JSON.parse(text) as ProjectTemplate;
+    return JSON.parse(response.text || '{}') as ProjectTemplate;
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw error;
   }
 };
 
-export const generateDetailedTechPlan = async (
+export const generateDetailedTechPlan = async (type: 'hardware' | 'software', summary: string, projectName: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const prompt = `你正在为项目 "${projectName}" 编写详细的 ${type === 'hardware' ? '硬件 BOM 与说明' : '软件架构与接口规约'}。
+    摘要参考：${summary}。
+    
+    特别要求：
+    1. 使用标准 GFM Markdown 语法输出，必须包含详细表格（如物料清单或接口定义）。
+    2. 严禁使用任何 HTML 标签（特别是禁止生成 <br> 或 <br/>，请仅使用标准 Markdown 换行符）。
+    3. 硬件方案必须包含一个名为“物料清单 (BOM)”的 Markdown 表格。
+    4. 确保生成的表格前后有足够的空行，以确保正确解析。
+    5. 语气专业，内容具有可落地性。`;
+  
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: { parts: [{ text: prompt }] },
+      config: { 
+        thinkingConfig: { thinkingBudget: 4000 } 
+      }
+    });
+    return response.text || "生成方案失败，请重试。";
+  } catch (error) {
+    console.error("Gemini API Error (Tech Plan):", error);
+    throw error;
+  }
+};
+
+export const getAlternatives = async (
   type: 'hardware' | 'software',
-  summary: string,
-  projectName: string
-): Promise<string> => {
-  if (!apiKey) throw new Error("API Key not found");
-  const ai = new GoogleGenAI({ apiKey });
+  item: string,
+  projectContext: string
+): Promise<string[]> => {
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const prompt = `Context: A project named "${projectContext}".
+  The user is selecting a ${type === 'hardware' ? 'hardware component' : 'software technology/language/framework'}.
+  Current selection: "${item}".
+  Task: List 4 viable alternatives or related options that could replace or complement "${item}" for this project.
+  Output: A simple JSON array of strings (e.g., ["Option A", "Option B"]). No markdown.`;
 
-  const prompt = `
-    作为一名资深的${type === 'hardware' ? '硬件' : '软件'}架构师，请为项目"${projectName}"生成一份详细的${type === 'hardware' ? '硬件实施方案' : '软件技术实施方案'}。
-    
-    基于以下概要信息进行深度扩展：
-    ${summary}
-    
-    要求：
-    1. 输出格式为 **Markdown**。
-    2. 内容必须专业、深入，具备可执行性。
-    3. 如果是硬件：包括系统框图描述、关键元器件选型理由、电源设计、信号完整性考虑、PCB布局建议等。
-    4. 如果是软件：包括详细架构设计、模块划分、API设计规范、数据库设计建议、部署方案、安全策略等。
-    5. 字数建议 500-1000 字。
-  `;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: { parts: [{ text: prompt }] },
-    config: {
-      thinkingConfig: { thinkingBudget: 1024 }
-    }
-  });
-
-  return response.text || "生成详细方案失败，请重试。";
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: { parts: [{ text: prompt }] },
+      config: { responseMimeType: "application/json" }
+    });
+    return JSON.parse(response.text || '[]');
+  } catch (error) {
+    console.error("Gemini Suggestion Error:", error);
+    return [];
+  }
 };
